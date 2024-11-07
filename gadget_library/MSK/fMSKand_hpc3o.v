@@ -31,6 +31,7 @@ localparam mat_rnd = hpc3rnd/2;
 (* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *) input [hpc3rnd-1:0] rnd;
 (* fv_type = "clock" *) input clk;
 (* fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out;
+// Needs s != 0
 (* fv_type = "control", fv_latency = 1 *) input [`SHIDX_BITS-1:0] s;
                                       
 genvar i,j;
@@ -58,17 +59,19 @@ for(i=0; i<d; i=i+1) begin: ParProdI
     wire [d-2:0] w;
     assign out[i] = ^w;
     for(j=0; j<d; j=j+1) begin: ParProdJ
-        wire [`SHIDX_BITS-1:0] off_diag = ~(i^j);
-        wire enable = |(off_diag & s);
+        wire [`SHIDX_BITS-1:0] off_diag = i^j;
+        wire enable = &(s | ~off_diag);
         if (i != j) begin: NotEq
             localparam j2 = j < i ?  j : j-1;
             wire u_j2_comb, u_j2_reg;
-            // j2 == 0: u = Reg[a*(rnd0+b) + rnd1]
-            // j2 != 0: u = Reg[a*rnd0 + rnd1]
-            if (j2 == 0) begin
-                assign u_j2_comb = (ina[i] & (rnd_mat0[i][j] ^ inb[i])) ^ rnd_mat1[i][j];
-            end else begin
+            // Insert inner domain term when j+1=i if i=0, otherwise when i+1=j.
+            localparam add_inner_domain = i==0 ? (j+1==i) : (i+1==j);
+            // add_inner_domain: u = Reg[a*(rnd0+b) + rnd1]
+            // !add_inner_domain: u = Reg[a*rnd0 + rnd1]
+            if (add_inner_domain) begin
                 assign u_j2_comb = (ina[i] & rnd_mat0[i][j]) ^ rnd_mat1[i][j];
+            end else begin
+                assign u_j2_comb = (ina[i] & (rnd_mat0[i][j] ^ inb[i])) ^ rnd_mat1[i][j];
             end
             bin_REG #(.W(1)) REGin_u(
                 .clk(clk),
