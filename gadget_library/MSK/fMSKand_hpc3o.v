@@ -65,13 +65,13 @@ for(i=0; i<d; i=i+1) begin: ParProdI
             localparam j2 = j < i ?  j : j-1;
             wire u_j2_comb, u_j2_reg;
             // Insert inner domain term when j+1=i if i=0, otherwise when i+1=j.
-            localparam add_inner_domain = i==0 ? (j+1==i) : (i+1==j);
+            localparam add_inner_domain = i==0 ? (i+1==j) : (j+1==i);
             // add_inner_domain: u = Reg[a*(rnd0+b) + rnd1]
             // !add_inner_domain: u = Reg[a*rnd0 + rnd1]
             if (add_inner_domain) begin
-                assign u_j2_comb = (ina[i] & rnd_mat0[i][j]) ^ rnd_mat1[i][j];
-            end else begin
                 assign u_j2_comb = (ina[i] & (rnd_mat0[i][j] ^ inb[i])) ^ rnd_mat1[i][j];
+            end else begin
+                assign u_j2_comb = (ina[i] & rnd_mat0[i][j]) ^ rnd_mat1[i][j];
             end
             bin_REG #(.W(1)) REGin_u(
                 .clk(clk),
